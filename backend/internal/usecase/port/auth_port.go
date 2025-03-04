@@ -1,0 +1,41 @@
+package port
+
+import "context"
+
+// AuthInputPort は認証ユースケースの入力ポートです
+type AuthInputPort interface {
+	// Register はユーザー登録を行います
+	Register(ctx context.Context, email, password string) (AuthOutputData, error)
+
+	// Login はユーザーログインを行います
+	Login(ctx context.Context, email, password string) (AuthOutputData, error)
+
+	// VerifyToken はトークンを検証します
+	VerifyToken(ctx context.Context, token string) (string, error)
+
+	// RefreshToken はトークンを更新します
+	RefreshToken(ctx context.Context, refreshToken string) (AuthOutputData, error)
+}
+
+// AuthOutputPort は認証ユースケースの出力ポートです
+type AuthOutputPort interface {
+	// PresentRegister はユーザー登録結果を表示します
+	PresentRegister(ctx context.Context, data AuthOutputData) error
+
+	// PresentLogin はユーザーログイン結果を表示します
+	PresentLogin(ctx context.Context, data AuthOutputData) error
+
+	// PresentRefreshToken はトークン更新結果を表示します
+	PresentRefreshToken(ctx context.Context, data AuthOutputData) error
+
+	// PresentError はエラーを表示します
+	PresentError(ctx context.Context, err error) error
+}
+
+// AuthOutputData は認証ユースケースの出力データです
+type AuthOutputData struct {
+	UserID       string `json:"user_id"`
+	Email        string `json:"email"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
