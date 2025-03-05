@@ -12,6 +12,7 @@ import (
 type User struct {
 	ID        primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	UUID      string             `json:"uuid" bson:"uuid"`
+	Name      string             `json:"name" bson:"name"`
 	Email     string             `json:"email" bson:"email"`
 	Password  string             `json:"-" bson:"password"`
 	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
@@ -19,7 +20,7 @@ type User struct {
 }
 
 // NewUser は新しいユーザーエンティティを作成します
-func NewUser(email, password string) (*User, error) {
+func NewUser(name, email, password string) (*User, error) {
 	// パスワードをハッシュ化
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -29,6 +30,7 @@ func NewUser(email, password string) (*User, error) {
 	now := time.Now()
 	return &User{
 		UUID:      uuid.New().String(),
+		Name:      name,
 		Email:     email,
 		Password:  string(hashedPassword),
 		CreatedAt: now,
@@ -52,4 +54,11 @@ func (u *User) UpdatePassword(password string) error {
 	u.Password = string(hashedPassword)
 	u.UpdatedAt = time.Now()
 	return nil
+}
+
+// UpdateProfile はプロフィールを更新します
+func (u *User) UpdateProfile(name, email string) {
+	u.Name = name
+	u.Email = email
+	u.UpdatedAt = time.Now()
 }

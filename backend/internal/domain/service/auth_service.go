@@ -21,7 +21,7 @@ func NewAuthService(userRepo repository.UserRepository) *AuthService {
 }
 
 // Register はユーザー登録を行います
-func (s *AuthService) Register(ctx context.Context, email, password string) (*entity.User, error) {
+func (s *AuthService) Register(ctx context.Context, name, email, password string) (*entity.User, error) {
 	// メールアドレスの重複チェック
 	existingUser, err := s.userRepo.FindByEmail(ctx, email)
 	if err == nil && existingUser != nil {
@@ -29,7 +29,7 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (*en
 	}
 
 	// 新しいユーザーを作成
-	user, err := entity.NewUser(email, password)
+	user, err := entity.NewUser(name, email, password)
 	if err != nil {
 		return nil, err
 	}
@@ -61,4 +61,14 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*entit
 // GetUserByID はIDでユーザーを取得します
 func (s *AuthService) GetUserByID(ctx context.Context, id string) (*entity.User, error) {
 	return s.userRepo.FindByID(ctx, id)
+}
+
+// UpdateUser はユーザー情報を更新します
+func (s *AuthService) UpdateUser(ctx context.Context, user *entity.User) error {
+	return s.userRepo.Update(ctx, user)
+}
+
+// DeleteUser はユーザーを削除します
+func (s *AuthService) DeleteUser(ctx context.Context, id string) error {
+	return s.userRepo.Delete(ctx, id)
 }
