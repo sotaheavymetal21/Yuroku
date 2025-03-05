@@ -106,11 +106,3 @@ type OnsenLogsOutputData struct {
 	Page       int                  `json:"page"`
 	Limit      int                  `json:"limit"`
 }
-
-// ImageOutputData は画像の出力データです
-type ImageOutputData struct {
-	ID        string    `json:"id"`
-	OnsenID   string    `json:"onsen_id"`
-	ImageURL  string    `json:"image_url"`
-	CreatedAt time.Time `json:"created_at"`
-}

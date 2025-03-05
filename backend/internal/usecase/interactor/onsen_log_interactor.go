@@ -109,10 +109,11 @@ func (i *OnsenLogInteractor) GetOnsenLog(ctx context.Context, id, userID string)
 	imageOutputData := make([]port.ImageOutputData, len(images))
 	for i, image := range images {
 		imageOutputData[i] = port.ImageOutputData{
-			ID:        image.UUID,
-			OnsenID:   image.OnsenID,
-			ImageURL:  image.ImageURL,
-			CreatedAt: image.CreatedAt,
+			ID:          image.UUID,
+			OnsenID:     image.OnsenID,
+			URL:         image.ImageURL,
+			Description: image.Description,
+			CreatedAt:   image.CreatedAt,
 		}
 	}
 
@@ -272,10 +273,11 @@ func (i *OnsenLogInteractor) UpdateOnsenLog(ctx context.Context, input port.Upda
 	imageOutputData := make([]port.ImageOutputData, len(images))
 	for i, image := range images {
 		imageOutputData[i] = port.ImageOutputData{
-			ID:        image.UUID,
-			OnsenID:   image.OnsenID,
-			ImageURL:  image.ImageURL,
-			CreatedAt: image.CreatedAt,
+			ID:          image.UUID,
+			OnsenID:     image.OnsenID,
+			URL:         image.ImageURL,
+			Description: image.Description,
+			CreatedAt:   image.CreatedAt,
 		}
 	}
 

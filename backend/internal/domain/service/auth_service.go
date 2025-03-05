@@ -3,20 +3,24 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/yourusername/yuroku/internal/domain/entity"
 	"github.com/yourusername/yuroku/internal/domain/repository"
 )
 
 // AuthService は認証に関するドメインサービスです
 type AuthService struct {
-	userRepo repository.UserRepository
+	userRepo  repository.UserRepository
+	jwtSecret string
 }
 
 // NewAuthService は新しい認証サービスを作成します
-func NewAuthService(userRepo repository.UserRepository) *AuthService {
+func NewAuthService(userRepo repository.UserRepository, jwtSecret string) *AuthService {
 	return &AuthService{
-		userRepo: userRepo,
+		userRepo:  userRepo,
+		jwtSecret: jwtSecret,
 	}
 }
 
@@ -71,4 +75,49 @@ func (s *AuthService) UpdateUser(ctx context.Context, user *entity.User) error {
 // DeleteUser はユーザーを削除します
 func (s *AuthService) DeleteUser(ctx context.Context, id string) error {
 	return s.userRepo.Delete(ctx, id)
+}
+
+// VerifyToken はJWTトークンを検証します
+func (s *AuthService) VerifyToken(ctx context.Context, tokenString string) (string, error) {
+	// トークンを解析
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// 署名アルゴリズムを検証
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("無効な署名アルゴリズムです")
+		}
+		return []byte(s.jwtSecret), nil
+	})
+
+	if err != nil {
+		return "", errors.New("トークンの検証に失敗しました")
+	}
+
+	// トークンの有効性を検証
+	if !token.Valid {
+		return "", errors.New("無効なトークンです")
+	}
+
+	// クレームを取得
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", errors.New("無効なトークンクレームです")
+	}
+
+	// 有効期限を検証
+	exp, ok := claims["exp"].(float64)
+	if !ok {
+		return "", errors.New("無効な有効期限です")
+	}
+
+	if time.Unix(int64(exp), 0).Before(time.Now()) {
+		return "", errors.New("トークンの有効期限が切れています")
+	}
+
+	// ユーザーIDを取得
+	userID, ok := claims["sub"].(string)
+	if !ok {
+		return "", errors.New("無効なユーザーIDです")
+	}
+
+	return userID, nil
 }

@@ -28,7 +28,7 @@ func NewOnsenImageService(imageRepo repository.OnsenImageRepository, onsenLogRep
 }
 
 // UploadImage は温泉画像をアップロードします
-func (s *OnsenImageService) UploadImage(ctx context.Context, onsenID, userID string, file io.Reader, fileName, contentType string) (*entity.OnsenImage, error) {
+func (s *OnsenImageService) UploadImage(ctx context.Context, onsenID, userID string, file io.Reader, fileName, contentType, description string) (*entity.OnsenImage, error) {
 	// 温泉メモを取得
 	onsenLog, err := s.onsenLogRepo.FindByID(ctx, onsenID)
 	if err != nil {
@@ -65,7 +65,7 @@ func (s *OnsenImageService) UploadImage(ctx context.Context, onsenID, userID str
 	}
 
 	// 画像情報をデータベースに保存
-	onsenImage := entity.NewOnsenImage(onsenID, fileURL)
+	onsenImage := entity.NewOnsenImage(onsenID, userID, fileURL, description)
 	if err := s.imageRepo.Create(ctx, onsenImage); err != nil {
 		// エラーが発生した場合、アップロードしたファイルを削除
 		_ = s.storageRepo.Delete(ctx, fileURL)

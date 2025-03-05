@@ -17,7 +17,7 @@ func NewAuthPresenter() port.AuthPresenterPort {
 func (p *AuthPresenter) PresentUser(user *entity.User) map[string]interface{} {
 	return map[string]interface{}{
 		"id":        user.ID.Hex(),
-		"username":  user.Username,
+		"name":      user.Name,
 		"email":     user.Email,
 		"createdAt": user.CreatedAt,
 		"updatedAt": user.UpdatedAt,

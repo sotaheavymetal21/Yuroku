@@ -48,19 +48,29 @@ func main() {
 	onsenImageRepo := gateway.NewMongoOnsenImageRepository(db)
 
 	// ドメインサービスを初期化
-	authService := service.NewAuthService(userRepo, os.Getenv("JWT_SECRET"))
-	onsenLogService := service.NewOnsenLogService(onsenLogRepo)
-	onsenImageService := service.NewOnsenImageService(onsenImageRepo, fileStorage)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	authService := service.NewAuthService(userRepo, jwtSecret)
+	onsenLogService := service.NewOnsenLogService(onsenLogRepo, onsenImageRepo)
+	onsenImageService := service.NewOnsenImageService(onsenImageRepo, onsenLogRepo, fileStorage)
 
 	// プレゼンターを初期化
 	authPresenter := presenter.NewAuthPresenter()
 	onsenLogPresenter := presenter.NewOnsenLogPresenter()
 	onsenImagePresenter := presenter.NewOnsenImagePresenter()
 
+	// プレゼンターをOutputPortにアダプト
+	authOutputPort := presenter.NewAuthOutputAdapter(authPresenter)
+	onsenLogOutputPort := presenter.NewOnsenLogOutputAdapter(onsenLogPresenter)
+	onsenImageOutputPort := presenter.NewOnsenImageOutputAdapter(onsenImagePresenter)
+
+	// JWTの設定
+	accessTokenDuration := 15 * time.Minute    // アクセストークンの有効期限
+	refreshTokenDuration := 7 * 24 * time.Hour // リフレッシュトークンの有効期限
+
 	// ユースケースを初期化
-	authInteractor := interactor.NewAuthInteractor(authService, authPresenter)
-	onsenLogInteractor := interactor.NewOnsenLogInteractor(onsenLogService, onsenImageService, onsenLogPresenter)
-	onsenImageInteractor := interactor.NewOnsenImageInteractor(onsenImageService, onsenImagePresenter)
+	authInteractor := interactor.NewAuthInteractor(authService, authOutputPort, jwtSecret, accessTokenDuration, refreshTokenDuration)
+	onsenLogInteractor := interactor.NewOnsenLogInteractor(onsenLogService, onsenImageService, onsenLogOutputPort)
+	onsenImageInteractor := interactor.NewOnsenImageInteractor(onsenImageService, onsenImageOutputPort)
 
 	// コントローラーを初期化
 	authController := controller.NewAuthController(authInteractor)
