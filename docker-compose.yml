@@ -54,6 +54,13 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    command: --wiredTigerCacheSizeGB 0.5
+    environment:
+      - MONGO_INITDB_DATABASE=yuroku
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     networks:
       - yuroku-network
 
@@ -73,6 +80,11 @@ services:
 
 volumes:
   mongo-data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '${PWD}/data/mongodb'
 
 networks:
   yuroku-network:

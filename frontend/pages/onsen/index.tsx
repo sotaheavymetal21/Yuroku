@@ -7,6 +7,7 @@ import Button from '@/components/common/Button';
 import InputField from '@/components/common/InputField';
 import Loading from '@/components/common/Loading';
 import ErrorMessage from '@/components/common/ErrorMessage';
+import OnsenCard from '@/components/onsen/OnsenCard';
 import { getOnsenLogs, exportOnsenLogsAsJson, exportOnsenLogsAsCsv } from '@/services/onsenLog';
 import { OnsenLog, PaginationParams, OnsenLogFilter } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -254,69 +255,60 @@ const OnsenLogsPage: React.FC = () => {
         </Card>
       )}
 
-      {error && <ErrorMessage message={error} className="mb-4" />}
+      {/* エラーメッセージ */}
+      {error && <ErrorMessage message={error} className="mb-6" />}
 
+      {/* 読み込み中 */}
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <Loading size="large" text="読み込み中..." />
         </div>
-      ) : onsenLogs.length === 0 ? (
-        <Card className="text-center py-12">
-          <p className="text-gray-500 mb-4">温泉メモがまだありません</p>
-          <Button onClick={() => router.push('/onsen/new')} icon={<FaPlus />}>
-            最初のメモを作成
-          </Button>
-        </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {onsenLogs.map((log) => (
-            <Card
-              key={log._id}
-              title={log.name}
-              subtitle={`${log.location} • ${new Date(log.visitDate).toLocaleDateString('ja-JP')}`}
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => router.push(`/onsen/${log._id}`)}
-            >
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <span className="text-yellow-500 font-bold">{log.rating}</span>
-                  <span className="text-gray-500 ml-1">/ 5</span>
-                </div>
-                <span className="text-gray-500 text-sm">
-                  {log.waterType}
-                </span>
-              </div>
-              {log.comment && (
-                <p className="mt-2 text-gray-600 line-clamp-2">{log.comment}</p>
-              )}
+        <>
+          {/* 温泉メモ一覧 */}
+          {onsenLogs.length === 0 ? (
+            <Card className="p-8 text-center">
+              <p className="text-gray-500 mb-4">温泉メモがまだありません。</p>
+              <Button
+                onClick={() => router.push('/onsen/new')}
+                icon={<FaPlus />}
+              >
+                最初のメモを作成
+              </Button>
             </Card>
-          ))}
-        </div>
-      )}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              {onsenLogs.map((onsenLog) => (
+                <OnsenCard key={onsenLog.id} onsenLog={onsenLog} />
+              ))}
+            </div>
+          )}
 
-      {/* ページネーション */}
-      {!loading && onsenLogs.length > 0 && (
-        <div className="mt-8 flex justify-center">
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              disabled={pagination.page === 1}
-              onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
-            >
-              前へ
-            </Button>
-            <span className="flex items-center px-4 py-2 bg-gray-100 rounded-md">
-              {pagination.page} / {Math.ceil(pagination.total / pagination.limit)}
-            </span>
-            <Button
-              variant="outline"
-              disabled={pagination.page >= Math.ceil(pagination.total / pagination.limit)}
-              onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
-            >
-              次へ
-            </Button>
-          </div>
-        </div>
+          {/* ページネーション */}
+          {pagination.total > pagination.limit && (
+            <div className="flex justify-center mt-8">
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  disabled={pagination.page === 1}
+                  onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
+                >
+                  前へ
+                </Button>
+                <span className="flex items-center px-4 py-2 bg-gray-100 rounded">
+                  {pagination.page} / {Math.ceil(pagination.total / pagination.limit)}
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={pagination.page >= Math.ceil(pagination.total / pagination.limit)}
+                  onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
+                >
+                  次へ
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </Layout>
   );

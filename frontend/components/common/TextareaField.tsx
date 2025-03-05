@@ -1,56 +1,55 @@
-import React, { TextareaHTMLAttributes, forwardRef } from 'react';
-import ErrorMessage from './ErrorMessage';
+import React from 'react';
 
-interface TextareaFieldProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+interface TextareaFieldProps {
   label?: string;
+  name: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  rows?: number;
+  required?: boolean;
+  disabled?: boolean;
+  className?: string;
   error?: string;
-  helperText?: string;
-  fullWidth?: boolean;
 }
 
-const TextareaField = forwardRef<HTMLTextAreaElement, TextareaFieldProps>(
-  (
-    {
-      label,
-      error,
-      helperText,
-      fullWidth = true,
-      className = '',
-      id,
-      rows = 4,
-      ...rest
-    },
-    ref
-  ) => {
-    const inputId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
-    const widthClass = fullWidth ? 'w-full' : '';
-    const errorClass = error
-      ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-      : 'border-gray-300 focus:ring-primary-500 focus:border-primary-500';
-
-    return (
-      <div className={`${widthClass} ${className}`}>
-        {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1">
-            {label}
-          </label>
-        )}
-        <textarea
-          ref={ref}
-          id={inputId}
-          rows={rows}
-          className={`appearance-none block px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 ${errorClass} ${widthClass}`}
-          {...rest}
-        />
-        {error && <ErrorMessage message={error} />}
-        {helperText && !error && (
-          <p className="mt-1 text-sm text-gray-500">{helperText}</p>
-        )}
-      </div>
-    );
-  }
-);
-
-TextareaField.displayName = 'TextareaField';
+const TextareaField: React.FC<TextareaFieldProps> = ({
+  label,
+  name,
+  value,
+  onChange,
+  placeholder = '',
+  rows = 3,
+  required = false,
+  disabled = false,
+  className = '',
+  error,
+}) => {
+  return (
+    <div className={`mb-4 ${className}`}>
+      {label && (
+        <label htmlFor={name} className="block text-gray-700 font-medium mb-2">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      )}
+      <textarea
+        id={name}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        rows={rows}
+        required={required}
+        disabled={disabled}
+        className={`w-full px-3 py-2 border ${
+          error ? 'border-red-500' : 'border-gray-300'
+        } rounded-md focus:outline-none focus:ring-2 focus:ring-onsen focus:border-transparent ${
+          disabled ? 'bg-gray-100 cursor-not-allowed' : ''
+        }`}
+      />
+      {error && <p className="mt-1 text-red-500 text-sm">{error}</p>}
+    </div>
+  );
+};
 
 export default TextareaField; 
