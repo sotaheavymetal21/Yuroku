@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # フロントエンド（Next.js）
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - API_URL=http://backend:8080/api/v1
+    depends_on:
+      - backend
+    networks:
+      - yuroku-network
+
+  # バックエンド（Go + Gin）
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./backend:/app
+      - /app/tmp
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - ENV=development
+      - API_VERSION=v1
+      - MONGO_URI=mongodb://mongo:27017
+      - MONGO_DATABASE=yuroku
+      - JWT_SECRET=development_jwt_secret
+      - JWT_EXPIRY=15m
+      - REFRESH_TOKEN_EXPIRY=7d
+      - ALLOWED_ORIGINS=http://localhost:3000
+      - STORAGE_TYPE=local
+      - STORAGE_PATH=/app/storage
+    depends_on:
+      - mongo
+    networks:
+      - yuroku-network
+
+  # MongoDB
+  mongo:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - yuroku-network
+
+  # MongoDB管理ツール（オプション）
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_MONGODB_PORT=27017
+    depends_on:
+      - mongo
+    networks:
+      - yuroku-network
+
+volumes:
+  mongo-data:
+
+networks:
+  yuroku-network:
+    driver: bridge

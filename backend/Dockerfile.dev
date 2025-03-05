@@ -1,0 +1,24 @@
+FROM golang:1.21-alpine
+
+WORKDIR /app
+
+# ホットリロード用のツールをインストール（バージョンを指定して互換性を確保）
+RUN go install github.com/cosmtrek/air@v1.49.0
+
+# 依存関係をコピー
+COPY go.mod ./
+# go.sumファイルが存在しない場合でもエラーにならないようにする
+RUN touch go.sum
+RUN go mod download && go mod tidy
+
+# ソースコードをコピー
+COPY . .
+
+# APIサーバーのポートを公開
+EXPOSE 8080
+
+# air設定ファイルをコピー
+COPY .air.toml ./
+
+# ホットリロードでアプリケーションを実行
+CMD ["air", "-c", ".air.toml"] 

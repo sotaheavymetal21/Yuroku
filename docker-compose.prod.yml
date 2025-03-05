@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # フロントエンド（Next.js）
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - API_URL=http://backend:8080/api/v1
+    depends_on:
+      - backend
+    networks:
+      - yuroku-network
+
+  # バックエンド（Go + Gin）
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - ENV=production
+      - API_VERSION=v1
+      - MONGO_URI=mongodb://mongo:27017
+      - MONGO_DATABASE=yuroku
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRY=15m
+      - REFRESH_TOKEN_EXPIRY=7d
+      - ALLOWED_ORIGINS=http://localhost:3000,https://yuroku.example.com
+      - STORAGE_TYPE=${STORAGE_TYPE:-local}
+      - STORAGE_PATH=/app/storage
+    volumes:
+      - storage-data:/app/storage
+    depends_on:
+      - mongo
+    networks:
+      - yuroku-network
+
+  # MongoDB
+  mongo:
+    image: mongo:6.0
+    restart: always
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - yuroku-network
+    # 本番環境ではパスワードを設定
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-password}
+    command: [--auth]
+
+volumes:
+  mongo-data:
+  storage-data:
+
+networks:
+  yuroku-network:
+    driver: bridge 
