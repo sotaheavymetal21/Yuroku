@@ -13,6 +13,8 @@ help:
 	@echo "  make logs            - コンテナのログを表示"
 	@echo "  make ps              - 実行中のコンテナを表示"
 	@echo "  make build           - コンテナをビルド"
+	@echo "  make seed            - シードデータを投入"
+	@echo "  make seed-build      - シードデータ投入用ツールをビルド"
 	@echo "  make prod-up         - 本番環境のコンテナを起動"
 	@echo "  make prod-down       - 本番環境のコンテナを停止"
 	@echo "  make prod-restart    - 本番環境のコンテナを再起動"
@@ -47,6 +49,17 @@ ps:
 build:
 	@echo "コンテナをビルドしています..."
 	docker compose build
+
+# シードデータコマンド
+.PHONY: seed-build
+seed-build:
+	@echo "シードデータ投入ツールをビルドしています..."
+	docker compose exec backend go build -o ./tmp/seed ./cmd/seed
+
+.PHONY: seed
+seed: seed-build
+	@echo "シードデータを投入しています..."
+	docker compose exec backend ./tmp/seed
 
 # 本番環境コマンド
 .PHONY: prod-up
