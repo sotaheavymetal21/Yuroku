@@ -1,0 +1,6 @@
+db.users.find().pretty()
+show collections
+use yuroku
+show a
+show collections
+show dbs

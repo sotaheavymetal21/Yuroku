@@ -92,4 +92,4 @@ backend-shell:
 
 .PHONY: mongo-shell
 mongo-shell:
-	docker compose exec mongo mongo
+	docker compose exec mongo mongosh
