@@ -27,14 +27,14 @@ func main() {
 	}
 
 	// MongoDBに接続
-	mongoClient, err := database.NewMongoClient(os.Getenv("MONGODB_URI"))
+	mongoClient, err := database.NewMongoClient(os.Getenv("MONGO_URI"))
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
 	defer mongoClient.Disconnect(context.Background())
 
 	// データベースを取得
-	db := mongoClient.Database(os.Getenv("MONGODB_DATABASE"))
+	db := mongoClient.Database(os.Getenv("MONGO_DATABASE"))
 
 	// ストレージを初期化
 	fileStorage, err := storage.NewLocalFileStorage(os.Getenv("UPLOAD_DIR"))

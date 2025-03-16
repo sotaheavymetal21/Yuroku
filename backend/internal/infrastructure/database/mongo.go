@@ -35,9 +35,9 @@ func NewMongoClient(uri string) (*mongo.Client, error) {
 // GetMongoDB はMongoDBデータベースインスタンスを取得します
 func GetMongoDB() (*mongo.Database, error) {
 	// 環境変数からURI取得
-	uri := os.Getenv("MONGODB_URI")
+	uri := os.Getenv("MONGO_URI")
 	if uri == "" {
-		uri = "mongodb://localhost:27017"
+		uri = "mongodb://mongo:27017"
 	}
 
 	// クライアント作成
@@ -47,7 +47,7 @@ func GetMongoDB() (*mongo.Database, error) {
 	}
 
 	// データベース名取得
-	dbName := os.Getenv("MONGODB_DATABASE")
+	dbName := os.Getenv("MONGO_DATABASE")
 	if dbName == "" {
 		dbName = "yuroku"
 	}
