@@ -3,7 +3,7 @@ FROM golang:1.22-alpine
 WORKDIR /app
 
 # ホットリロード用のツールをインストール（バージョンを指定して互換性を確保）
-RUN go install github.com/cosmtrek/air@latest
+RUN go install github.com/cosmtrek/air@v1.49.0
 
 # 依存関係をコピー
 COPY go.mod go.sum ./

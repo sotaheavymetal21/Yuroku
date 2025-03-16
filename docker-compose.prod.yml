@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # フロントエンド（Next.js）
   frontend:
@@ -64,4 +62,4 @@ volumes:
 
 networks:
   yuroku-network:
-    driver: bridge 
+    driver: bridge
