@@ -14,8 +14,23 @@ export const register = async (data: RegisterRequest): Promise<AuthResponse> => 
   });
 
   // トークンをCookieに保存
-  if (response.token) {
-    Cookies.set('token', response.token, { expires: TOKEN_EXPIRY_DAYS });
+  if (response.data && response.data.access_token) {
+    // JWTトークンをCookieに保存
+    Cookies.set('token', response.data.access_token, { 
+      expires: TOKEN_EXPIRY_DAYS,
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
+    // リフレッシュトークンも保存
+    if (response.data.refresh_token) {
+      Cookies.set('refresh_token', response.data.refresh_token, {
+        expires: 30, // リフレッシュトークンの有効期限を30日に設定
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict'
+      });
+    }
   }
 
   return response;
@@ -30,8 +45,23 @@ export const login = async (data: LoginRequest): Promise<AuthResponse> => {
   });
 
   // トークンをCookieに保存
-  if (response.token) {
-    Cookies.set('token', response.token, { expires: TOKEN_EXPIRY_DAYS });
+  if (response.data && response.data.access_token) {
+    // JWTトークンをCookieに保存
+    Cookies.set('token', response.data.access_token, { 
+      expires: TOKEN_EXPIRY_DAYS,
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
+    // リフレッシュトークンも保存
+    if (response.data.refresh_token) {
+      Cookies.set('refresh_token', response.data.refresh_token, {
+        expires: 30, // リフレッシュトークンの有効期限を30日に設定
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict'
+      });
+    }
   }
 
   return response;
@@ -47,7 +77,8 @@ export const logout = (): void => {
 
 // 認証状態の確認
 export const isAuthenticated = (): boolean => {
-  return !!Cookies.get('token');
+  const token = Cookies.get('token');
+  return !!token;
 };
 
 // トークンの取得
