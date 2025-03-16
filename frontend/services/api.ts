@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import Cookies from 'js-cookie';
 import { ApiError } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
 // Axiosインスタンスの作成
 const api = axios.create({

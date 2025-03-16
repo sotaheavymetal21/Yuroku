@@ -53,10 +53,10 @@ func NewRouter(
 
 // SetupRoutes はAPIルートを設定します
 func (r *Router) SetupRoutes() {
-	// APIバージョンプレフィックス
-	api := r.engine.Group("/api/v1")
+	// APIプレフィックス
+	api := r.engine.Group("/api")
 
-	// 認証関連のルート
+	// 認証関連のルート (/api/auth/...)
 	auth := api.Group("/auth")
 	{
 		auth.POST("/register", r.authController.Register)
@@ -74,6 +74,24 @@ func (r *Router) SetupRoutes() {
 		}
 	}
 
+	// ルートレベルでも同じ認証エンドポイントを提供 (/auth/...)
+	rootAuth := r.engine.Group("/auth")
+	{
+		rootAuth.POST("/register", r.authController.Register)
+		rootAuth.POST("/login", r.authController.Login)
+		rootAuth.POST("/refresh", r.authController.RefreshToken)
+		rootAuth.POST("/logout", r.authMiddleware.RequireAuth(), r.authController.Logout)
+
+		// ユーザープロフィール関連
+		rootProfile := rootAuth.Group("/profile", r.authMiddleware.RequireAuth())
+		{
+			rootProfile.GET("", r.authController.GetCurrentUser)
+			rootProfile.PUT("", r.authController.UpdateProfile)
+			rootProfile.PUT("/password", r.authController.ChangePassword)
+			rootProfile.DELETE("", r.authController.DeleteAccount)
+		}
+	}
+
 	// 温泉メモ関連のルート
 	onsenLogs := api.Group("/onsen_logs", r.authMiddleware.RequireAuth())
 	{
@@ -87,7 +105,7 @@ func (r *Router) SetupRoutes() {
 
 		// 温泉画像関連のルート
 		// 注意: /:id と /:onsen_id が競合するため、別のパスを使用
-		onsenImages := api.Group("/v1/onsen_images")
+		onsenImages := api.Group("/onsen_images")
 		{
 			onsenImages.POST("/:onsen_id", r.onsenImageController.UploadImage)
 			onsenImages.GET("/:onsen_id", r.onsenImageController.GetImagesByOnsenID)
