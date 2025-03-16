@@ -24,7 +24,7 @@ const LoginPage: React.FC = () => {
 
     try {
       await login({ email, password });
-      router.push('/onsen');
+      window.location.href = '/onsen';
     } catch (err) {
       const apiError = err as ApiError;
       setError(apiError.message || 'ログインに失敗しました。もう一度お試しください。');

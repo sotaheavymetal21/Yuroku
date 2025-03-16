@@ -43,20 +43,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // 認証が必要なのにログインしていない場合はログインページへリダイレクト
       if (requiresAuth && !isLoggedIn) {
-        router.push('/auth/login');
+        window.location.href = '/auth/login';
+        return;
       }
 
       // ログイン済みなのにログインページにアクセスした場合はホームへリダイレクト
       if (isLoggedIn && (router.pathname === '/auth/login' || router.pathname === '/auth/register')) {
-        router.push('/onsen');
+        window.location.href = '/onsen';
+        return;
       }
     }
-  }, [isLoggedIn, loading, router]);
+  }, [isLoggedIn, loading, router.pathname]);
 
   const handleLogout = () => {
     logout();
     setIsLoggedIn(false);
-    router.push('/auth/login');
+    window.location.href = '/auth/login';
   };
 
   return (
