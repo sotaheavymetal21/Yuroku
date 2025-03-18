@@ -163,10 +163,8 @@ func (s *AuthService) VerifyToken(ctx context.Context, tokenString string) (stri
 		return "", errors.New("無効なトークンクレームです")
 	}
 
-	// トークン種別を確認
-	if claims.Type != AccessToken {
-		return "", errors.New("このエンドポイントではアクセストークンが必要です")
-	}
+	// アクセストークンとリフレッシュトークンの両方を許可する
+	// トークン種別のチェックを削除
 
 	// ユーザーIDを返す
 	return claims.UserID, nil

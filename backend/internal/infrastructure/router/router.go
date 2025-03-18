@@ -102,15 +102,34 @@ func (r *Router) SetupRoutes() {
 		onsenLogs.GET("/:id", r.onsenLogController.GetOnsenLog)
 		onsenLogs.PUT("/:id", r.onsenLogController.UpdateOnsenLog)
 		onsenLogs.DELETE("/:id", r.onsenLogController.DeleteOnsenLog)
+	}
 
-		// 温泉画像関連のルート
-		// 注意: /:id と /:onsen_id が競合するため、別のパスを使用
-		onsenImages := api.Group("/onsen_images")
-		{
-			onsenImages.POST("/:onsen_id", r.onsenImageController.UploadImage)
-			onsenImages.GET("/:onsen_id", r.onsenImageController.GetImagesByOnsenID)
-			onsenImages.DELETE("/:image_id", r.onsenImageController.DeleteImage)
-		}
+	// ハイフン形式のURLも同じエンドポイントにマッピング（代替URLとして）
+	onsenLogsAlt := api.Group("/onsen-logs", r.authMiddleware.RequireAuth())
+	{
+		onsenLogsAlt.POST("", r.onsenLogController.CreateOnsenLog)
+		onsenLogsAlt.GET("", r.onsenLogController.GetOnsenLogs)
+		onsenLogsAlt.GET("/filter", r.onsenLogController.GetFilteredOnsenLogs)
+		onsenLogsAlt.GET("/export", r.onsenLogController.ExportOnsenLogs)
+		onsenLogsAlt.GET("/:id", r.onsenLogController.GetOnsenLog)
+		onsenLogsAlt.PUT("/:id", r.onsenLogController.UpdateOnsenLog)
+		onsenLogsAlt.DELETE("/:id", r.onsenLogController.DeleteOnsenLog)
+	}
+
+	// 温泉画像関連のルート - 認証ミドルウェアを追加
+	onsenImages := api.Group("/onsen_images", r.authMiddleware.RequireAuth())
+	{
+		onsenImages.POST("/:onsen_id", r.onsenImageController.UploadImage)
+		onsenImages.GET("/:onsen_id", r.onsenImageController.GetImagesByOnsenID)
+		onsenImages.DELETE("/:image_id", r.onsenImageController.DeleteImage)
+	}
+
+	// ハイフン形式の温泉画像URLも追加
+	onsenImagesAlt := api.Group("/onsen-images", r.authMiddleware.RequireAuth())
+	{
+		onsenImagesAlt.POST("/:onsen_id", r.onsenImageController.UploadImage)
+		onsenImagesAlt.GET("/:onsen_id", r.onsenImageController.GetImagesByOnsenID)
+		onsenImagesAlt.DELETE("/:image_id", r.onsenImageController.DeleteImage)
 	}
 
 	// ヘルスチェック
