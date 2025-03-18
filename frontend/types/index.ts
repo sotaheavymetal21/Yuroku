@@ -45,7 +45,7 @@ export interface OnsenLog {
 export interface OnsenLogCreateRequest {
   name: string;
   location?: string;
-  spring_type?: string;
+  spring_type: string;
   features?: string[];
   visit_date: string;
   rating?: number;
@@ -65,6 +65,11 @@ export interface OnsenLogUpdateRequest {
 export interface OnsenLogResponse {
   id: string;
   message: string;
+}
+
+export interface OnsenLogListResponse {
+  onsenLogs: OnsenLog[];
+  total: number;
 }
 
 // 温泉画像関連の型定義
@@ -108,7 +113,6 @@ export interface PaginationParams {
 export interface ApiResponse<T> {
   data: T;
   message?: string;
-  total?: number;
 }
 
 export interface ApiError {

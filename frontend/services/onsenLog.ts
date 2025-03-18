@@ -6,6 +6,8 @@ import {
   OnsenLogResponse,
   OnsenLogFilter,
   PaginationParams,
+  ApiResponse,
+  OnsenLogListResponse,
 } from '@/types';
 
 // 温泉メモの作成
@@ -22,12 +24,12 @@ export const createOnsenLog = async (
 // 温泉メモの一覧取得
 export const getOnsenLogs = async (
   pagination?: PaginationParams
-): Promise<OnsenLog[]> => {
+): Promise<ApiResponse<OnsenLogListResponse>> => {
   const params = pagination
     ? { page: pagination.page, limit: pagination.limit }
     : {};
 
-  return apiRequest<OnsenLog[]>({
+  return apiRequest<OnsenLogListResponse>({
     method: 'GET',
     url: '/onsen_logs',
     params,

@@ -79,8 +79,18 @@ const NewOnsenLogPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
+      // バックエンドのAPI要件に合わせてデータを変換
+      const requestData = {
+        name: formData.name,
+        location: formData.location,
+        spring_type: formData.waterType,
+        visit_date: formData.visitDate,
+        rating: formData.rating,
+        comment: formData.comment,
+      };
+
       // 温泉メモの作成
-      const response = await createOnsenLog(formData);
+      const response = await createOnsenLog(requestData);
       const onsenId = response._id;
 
       // 画像のアップロード（複数ある場合は順次処理）

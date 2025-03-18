@@ -66,10 +66,10 @@ const OnsenLogsPage: React.FC = () => {
         sortDirection,
       });
       
-      setOnsenLogs(response.data);
+      setOnsenLogs(response.data.onsenLogs || []);
       setPagination({
         ...pagination,
-        total: response.total || 0,
+        total: response.data.total || 0,
       });
     } catch (err) {
       setError('温泉メモの取得に失敗しました。もう一度お試しください。');
