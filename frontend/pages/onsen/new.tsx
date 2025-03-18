@@ -169,11 +169,12 @@ const NewOnsenLogPage: React.FC = () => {
               />
               
               <InputField
-                label="泉質"
+                label="泉質 *"
                 name="waterType"
                 value={formData.waterType}
                 onChange={handleChange}
                 placeholder="例: 硫黄泉"
+                required
               />
               
               <InputField
