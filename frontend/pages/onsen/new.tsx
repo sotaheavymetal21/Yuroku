@@ -79,32 +79,72 @@ const NewOnsenLogPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
+      // バリデーション
+      if (!formData.name || !formData.location || !formData.waterType || !formData.visitDate) {
+        setError('必須項目を入力してください');
+        setIsSubmitting(false);
+        return;
+      }
+
       // バックエンドのAPI要件に合わせてデータを変換
       const requestData = {
         name: formData.name,
         location: formData.location,
-        spring_type: formData.waterType,
-        visit_date: formData.visitDate,
+        spring_type: formData.waterType, // waterTypeをspring_typeとして送信
+        visit_date: formData.visitDate, // visitDateをvisit_dateとして送信
         rating: formData.rating,
         comment: formData.comment,
       };
 
+      console.log('送信データ:', requestData);
+
       // 温泉メモの作成
       const response = await createOnsenLog(requestData);
-      const onsenId = response._id;
+      console.log('レスポンス:', response);
+
+      if (!response || !response.data || !response.data.id) {
+        throw new Error('無効なレスポンス: IDが取得できませんでした');
+      }
+
+      const onsenId = response.data.id;
+      console.log('作成された温泉ID:', onsenId);
 
       // 画像のアップロード（複数ある場合は順次処理）
       if (images.length > 0) {
-        for (const image of images) {
-          await uploadOnsenImage(onsenId, image);
+        try {
+          for (const image of images) {
+            console.log(`画像アップロード: ${image.name} (${onsenId})`);
+            await uploadOnsenImage(onsenId, image);
+          }
+        } catch (uploadErr) {
+          console.error('画像アップロードエラー:', uploadErr);
+          // 画像アップロードが失敗しても温泉メモは作成されているので、エラーメッセージを表示するだけ
+          setError('温泉メモは作成されましたが、画像のアップロードに失敗しました。');
+          // 詳細ページに移動
+          setTimeout(() => {
+            router.push(`/onsen/${onsenId}`);
+          }, 1000);
+          return;
         }
       }
 
-      // 成功したら詳細ページへリダイレクト
-      router.push(`/onsen/${onsenId}`);
+      // 認証状態を更新（必要に応じて）
+      // useAuth().refreshAuthState();
+
+      // 成功したら詳細ページへリダイレクト（遅延させてステート更新を確実に）
+      setTimeout(() => {
+        router.push(`/onsen/${onsenId}`);
+      }, 500);
     } catch (err) {
-      console.error(err);
-      setError('温泉メモの作成に失敗しました。もう一度お試しください。');
+      console.error('温泉メモ作成エラー:', err);
+      
+      // エラーメッセージを表示
+      if (err && typeof err === 'object' && 'error' in err) {
+        const apiError = err as { error: { message: string } };
+        setError(apiError.error.message || '温泉メモの作成に失敗しました。もう一度お試しください。');
+      } else {
+        setError('温泉メモの作成に失敗しました。もう一度お試しください。');
+      }
     } finally {
       setIsSubmitting(false);
     }

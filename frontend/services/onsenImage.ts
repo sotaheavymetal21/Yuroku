@@ -7,12 +7,11 @@ export const uploadOnsenImage = async (
   file: File
 ): Promise<OnsenImageUploadResponse> => {
   const formData = new FormData();
-  formData.append('onsen_id', onsenId);
-  formData.append('file', file);
-
+  formData.append('image', file);
+  
   return apiRequest<OnsenImageUploadResponse>({
     method: 'POST',
-    url: '/onsen_images',
+    url: `/onsen_images/${onsenId}`,
     data: formData,
     headers: {
       'Content-Type': 'multipart/form-data',

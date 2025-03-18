@@ -50,12 +50,26 @@ const OnsenDetailPage: React.FC = () => {
 
   // 日付をフォーマット
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    if (!dateString) return '日付なし';
+    
+    try {
+      // ISO形式に変換を試みる
+      const date = new Date(dateString);
+      
+      // 無効な日付かチェック
+      if (isNaN(date.getTime())) {
+        return '日付情報なし';
+      }
+      
+      return date.toLocaleDateString('ja-JP', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('日付フォーマットエラー:', error);
+      return '日付形式エラー';
+    }
   };
 
   // 評価を星で表示

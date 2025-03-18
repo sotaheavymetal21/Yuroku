@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import Cookies from 'js-cookie';
 import { ApiError } from '@/types';
 
@@ -10,6 +10,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,  // CORS対応のためにクッキーを送信
 });
 
 // リクエストインターセプター
@@ -19,6 +20,12 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Content-Typeがmultipart/form-dataの場合はヘッダーを設定しない
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+    
     return config;
   },
   (error) => {
@@ -28,17 +35,63 @@ api.interceptors.request.use(
 
 // レスポンスインターセプター
 api.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse) => {
     return response;
   },
-  (error: AxiosError<ApiError>) => {
-    // 認証エラーの場合、ログインページにリダイレクト
-    if (error.response?.status === 401) {
-      Cookies.remove('token');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/auth/login';
+  async (error: AxiosError<ApiError>) => {
+    const originalRequest = error.config;
+    
+    // 認証エラーの場合
+    if (error.response?.status === 401 && originalRequest) {
+      // リフレッシュトークンが存在する場合は、トークン更新を試みる
+      const refreshToken = Cookies.get('refresh_token');
+      
+      if (refreshToken) {
+        try {
+          // リフレッシュトークンを使用して新しいアクセストークンを取得
+          const refreshResponse = await axios.post(`${API_URL}/auth/refresh`, {
+            refresh_token: refreshToken
+          });
+          
+          // 新しいトークンを保存
+          if (refreshResponse.data && refreshResponse.data.data && refreshResponse.data.data.access_token) {
+            Cookies.set('token', refreshResponse.data.data.access_token, { 
+              expires: 7,
+              path: '/',
+              sameSite: 'lax'  // Cookieの制限を緩和
+            });
+            
+            // 新しいトークンで元のリクエストを再試行
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.data.access_token}`;
+            }
+            return axios(originalRequest);
+          }
+        } catch (refreshError) {
+          // リフレッシュトークンによる更新に失敗した場合はログアウト
+          Cookies.remove('token');
+          Cookies.remove('refresh_token');
+          
+          // 非同期でリダイレクト
+          // ここではクライアントサイドのみの操作を確実にするため
+          if (typeof window !== 'undefined') {
+            setTimeout(() => {
+              window.location.href = '/auth/login';
+            }, 100);
+          }
+        }
+      } else {
+        // リフレッシュトークンがない場合はログアウト
+        Cookies.remove('token');
+        
+        if (typeof window !== 'undefined') {
+          setTimeout(() => {
+            window.location.href = '/auth/login';
+          }, 100);
+        }
       }
     }
+    
     return Promise.reject(error);
   }
 );
@@ -52,8 +105,10 @@ export const apiRequest = async <T>(
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
+      console.error('API Error:', error.response.data);
       throw error.response.data;
     }
+    console.error('Unexpected error:', error);
     throw error;
   }
 };

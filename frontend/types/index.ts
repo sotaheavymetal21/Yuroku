@@ -63,7 +63,19 @@ export interface OnsenLogUpdateRequest {
 }
 
 export interface OnsenLogResponse {
-  id: string;
+  data: {
+    id: string;
+    name: string;
+    location: string;
+    spring_type: string;
+    features: string[];
+    visit_date: string;
+    rating: number;
+    comment: string;
+    created_at: string;
+    updated_at: string;
+    images: any[];
+  };
   message: string;
 }
 
