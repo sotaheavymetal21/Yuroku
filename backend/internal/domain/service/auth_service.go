@@ -3,12 +3,28 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yourusername/yuroku/internal/domain/entity"
 	"github.com/yourusername/yuroku/internal/domain/repository"
 )
+
+// TokenType はトークンの種類を表します
+type TokenType string
+
+const (
+	AccessToken  TokenType = "access"
+	RefreshToken TokenType = "refresh"
+)
+
+// TokenClaims はJWTトークンのクレームを表します
+type TokenClaims struct {
+	UserID string    `json:"sub"`
+	Type   TokenType `json:"type"`
+	jwt.RegisteredClaims
+}
 
 // AuthService は認証に関するドメインサービスです
 type AuthService struct {
@@ -77,10 +93,54 @@ func (s *AuthService) DeleteUser(ctx context.Context, id string) error {
 	return s.userRepo.Delete(ctx, id)
 }
 
-// VerifyToken はJWTトークンを検証します
+// GenerateTokens はアクセストークンとリフレッシュトークンを生成します
+func (s *AuthService) GenerateTokens(userID string, accessExp, refreshExp time.Duration) (string, string, error) {
+	// アクセストークンを生成
+	accessToken, err := s.generateToken(userID, AccessToken, accessExp)
+	if err != nil {
+		return "", "", fmt.Errorf("アクセストークンの生成に失敗しました: %w", err)
+	}
+
+	// リフレッシュトークンを生成
+	refreshToken, err := s.generateToken(userID, RefreshToken, refreshExp)
+	if err != nil {
+		return "", "", fmt.Errorf("リフレッシュトークンの生成に失敗しました: %w", err)
+	}
+
+	return accessToken, refreshToken, nil
+}
+
+// generateToken は指定した種類のトークンを生成します
+func (s *AuthService) generateToken(userID string, tokenType TokenType, expiry time.Duration) (string, error) {
+	now := time.Now()
+	claims := TokenClaims{
+		UserID: userID,
+		Type:   tokenType,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
+			Issuer:    "yuroku-api",
+			Subject:   userID,
+		},
+	}
+
+	// トークンを生成
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	// トークンに署名
+	signedToken, err := token.SignedString([]byte(s.jwtSecret))
+	if err != nil {
+		return "", err
+	}
+
+	return signedToken, nil
+}
+
+// VerifyToken はJWTトークンを検証してユーザーIDを返します
 func (s *AuthService) VerifyToken(ctx context.Context, tokenString string) (string, error) {
 	// トークンを解析
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, func(token *jwt.Token) (interface{}, error) {
 		// 署名アルゴリズムを検証
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("無効な署名アルゴリズムです")
@@ -89,7 +149,7 @@ func (s *AuthService) VerifyToken(ctx context.Context, tokenString string) (stri
 	})
 
 	if err != nil {
-		return "", errors.New("トークンの検証に失敗しました")
+		return "", fmt.Errorf("トークンの検証に失敗しました: %w", err)
 	}
 
 	// トークンの有効性を検証
@@ -98,26 +158,57 @@ func (s *AuthService) VerifyToken(ctx context.Context, tokenString string) (stri
 	}
 
 	// クレームを取得
-	claims, ok := token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(*TokenClaims)
 	if !ok {
 		return "", errors.New("無効なトークンクレームです")
 	}
 
-	// 有効期限を検証
-	exp, ok := claims["exp"].(float64)
+	// トークン種別を確認
+	if claims.Type != AccessToken {
+		return "", errors.New("このエンドポイントではアクセストークンが必要です")
+	}
+
+	// ユーザーIDを返す
+	return claims.UserID, nil
+}
+
+// VerifyRefreshToken はリフレッシュトークンを検証してユーザーIDを返します
+func (s *AuthService) VerifyRefreshToken(ctx context.Context, tokenString string) (string, error) {
+	// トークンを解析
+	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, func(token *jwt.Token) (interface{}, error) {
+		// 署名アルゴリズムを検証
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("無効な署名アルゴリズムです")
+		}
+		return []byte(s.jwtSecret), nil
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("リフレッシュトークンの検証に失敗しました: %w", err)
+	}
+
+	// トークンの有効性を検証
+	if !token.Valid {
+		return "", errors.New("無効なリフレッシュトークンです")
+	}
+
+	// クレームを取得
+	claims, ok := token.Claims.(*TokenClaims)
 	if !ok {
-		return "", errors.New("無効な有効期限です")
+		return "", errors.New("無効なトークンクレームです")
 	}
 
-	if time.Unix(int64(exp), 0).Before(time.Now()) {
-		return "", errors.New("トークンの有効期限が切れています")
+	// トークン種別を確認
+	if claims.Type != RefreshToken {
+		return "", errors.New("無効なリフレッシュトークンです")
 	}
 
-	// ユーザーIDを取得
-	userID, ok := claims["sub"].(string)
-	if !ok {
-		return "", errors.New("無効なユーザーIDです")
+	// ユーザーの存在確認
+	user, err := s.userRepo.FindByID(ctx, claims.UserID)
+	if err != nil || user == nil {
+		return "", errors.New("ユーザーが見つかりません")
 	}
 
-	return userID, nil
+	// ユーザーIDを返す
+	return claims.UserID, nil
 }

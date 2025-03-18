@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/yourusername/yuroku/internal/domain/entity"
@@ -17,10 +18,98 @@ type MongoOnsenLogRepository struct {
 	collection *mongo.Collection
 }
 
+// コレクション名とインデックス名
+const (
+	onsenLogsCollection = "onsen_logs"
+	userIDIndex         = "user_id_idx"
+	visitDateIndex      = "visit_date_idx"
+	userVisitDateIndex  = "user_visit_date_idx"
+	userSpringTypeIndex = "user_spring_type_idx"
+	userLocationIndex   = "user_location_idx"
+	userRatingIndex     = "user_rating_idx"
+	compoundFilterIndex = "user_filter_compound_idx"
+)
+
 // NewMongoOnsenLogRepository は新しいMongoDBの温泉メモリポジトリを作成します
 func NewMongoOnsenLogRepository(db *mongo.Database) *MongoOnsenLogRepository {
-	return &MongoOnsenLogRepository{
-		collection: db.Collection("onsen_logs"),
+	// リポジトリインスタンスを作成
+	repo := &MongoOnsenLogRepository{
+		collection: db.Collection(onsenLogsCollection),
+	}
+
+	// 必要なインデックスを初期化
+	go repo.ensureIndexes(context.Background())
+
+	return repo
+}
+
+// ensureIndexes は必要なインデックスを設定します
+func (r *MongoOnsenLogRepository) ensureIndexes(ctx context.Context) {
+	// コンテキストをキャンセル可能にする
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	// ユーザーIDのインデックス
+	userIDIdx := mongo.IndexModel{
+		Keys:    bson.D{{Key: "user_id", Value: 1}},
+		Options: options.Index().SetName(userIDIndex),
+	}
+
+	// 訪問日のインデックス
+	visitDateIdx := mongo.IndexModel{
+		Keys:    bson.D{{Key: "visit_date", Value: -1}},
+		Options: options.Index().SetName(visitDateIndex),
+	}
+
+	// ユーザーID+訪問日の複合インデックス（よく使われる検索パターン）
+	userVisitDateIdx := mongo.IndexModel{
+		Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "visit_date", Value: -1}},
+		Options: options.Index().SetName(userVisitDateIndex),
+	}
+
+	// ユーザーID+泉質の複合インデックス
+	userSpringTypeIdx := mongo.IndexModel{
+		Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "spring_type", Value: 1}},
+		Options: options.Index().SetName(userSpringTypeIndex),
+	}
+
+	// ユーザーID+所在地の複合インデックス（テキスト検索の高速化）
+	userLocationIdx := mongo.IndexModel{
+		Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "location", Value: "text"}},
+		Options: options.Index().SetName(userLocationIndex),
+	}
+
+	// ユーザーID+評価の複合インデックス
+	userRatingIdx := mongo.IndexModel{
+		Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "rating", Value: -1}},
+		Options: options.Index().SetName(userRatingIndex),
+	}
+
+	// フィルタリングに使われる複合インデックス
+	filterIdx := mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "user_id", Value: 1},
+			{Key: "spring_type", Value: 1},
+			{Key: "rating", Value: -1},
+			{Key: "visit_date", Value: -1},
+		},
+		Options: options.Index().SetName(compoundFilterIndex),
+	}
+
+	// すべてのインデックスを一括で作成（存在する場合は無視される）
+	indexes := []mongo.IndexModel{
+		userIDIdx,
+		visitDateIdx,
+		userVisitDateIdx,
+		userSpringTypeIdx,
+		userLocationIdx,
+		userRatingIdx,
+		filterIdx,
+	}
+
+	_, err := r.collection.Indexes().CreateMany(ctx, indexes)
+	if err != nil {
+		log.Printf("Failed to create indexes: %v", err)
 	}
 }
 
@@ -97,36 +186,63 @@ func (r *MongoOnsenLogRepository) FindByUserID(ctx context.Context, userID strin
 
 // FindByUserIDWithPagination はユーザーIDに紐づく温泉メモをページネーションで検索します
 func (r *MongoOnsenLogRepository) FindByUserIDWithPagination(ctx context.Context, userID string, page, limit int) ([]*entity.OnsenLog, int, error) {
+	// タイムアウト設定
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
 	// 検索条件を作成
 	filter := bson.M{"user_id": userID}
 
-	// 総件数を取得
-	totalCount, err := r.collection.CountDocuments(ctx, filter)
-	if err != nil {
-		return nil, 0, err
+	// パイプラインを使って効率的にクエリを実行
+	pipeline := mongo.Pipeline{
+		// マッチングステージ
+		{{"$match", filter}},
+		// ソートステージ
+		{{"$sort", bson.M{"visit_date": -1}}},
+		// ファセット（集計）ステージ - 一度のクエリで合計カウントとページングデータを取得
+		{{"$facet", bson.M{
+			"metadata": mongo.Pipeline{
+				{{"$count", "total"}},
+			},
+			"data": mongo.Pipeline{
+				{{"$skip", (page - 1) * limit}},
+				{{"$limit", limit}},
+			},
+		}}},
 	}
 
-	// ページネーション条件を作成
-	skip := (page - 1) * limit
-	opts := options.Find().
-		SetSort(bson.M{"visit_date": -1}).
-		SetSkip(int64(skip)).
-		SetLimit(int64(limit))
-
-	// 検索を実行
-	cursor, err := r.collection.Find(ctx, filter, opts)
+	// パイプラインを実行
+	cursor, err := r.collection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer cursor.Close(ctx)
 
+	// 結果構造体
+	var results []struct {
+		Metadata []struct {
+			Total int `bson:"total"`
+		} `bson:"metadata"`
+		Data []*entity.OnsenLog `bson:"data"`
+	}
+
 	// 結果を取得
-	var onsenLogs []*entity.OnsenLog
-	if err := cursor.All(ctx, &onsenLogs); err != nil {
+	if err := cursor.All(ctx, &results); err != nil {
 		return nil, 0, err
 	}
 
-	return onsenLogs, int(totalCount), nil
+	// 結果が空の場合
+	if len(results) == 0 {
+		return []*entity.OnsenLog{}, 0, nil
+	}
+
+	// カウントを取得
+	totalCount := 0
+	if len(results[0].Metadata) > 0 {
+		totalCount = results[0].Metadata[0].Total
+	}
+
+	return results[0].Data, totalCount, nil
 }
 
 // FindByUserIDAndFilter はユーザーIDと条件に紐づく温泉メモを検索します

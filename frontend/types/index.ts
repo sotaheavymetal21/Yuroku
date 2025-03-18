@@ -27,19 +27,18 @@ export interface RegisterRequest {
 // 温泉メモ関連の型定義
 export interface OnsenLog {
   id: string;
+  uuid?: string;
   user_id: string;
   name: string;
-  location?: string;
-  spring_type?: string;
-  features?: string[];
+  location: string;
+  spring_type: string;
+  features: string[];
   visit_date: string;
-  rating?: number;
-  comment?: string;
+  rating: number;
+  comment: string;
   created_at: string;
   updated_at: string;
-  // フロントエンド表示用
-  _id?: string;
-  waterType?: string;
+  images?: OnsenImage[];
 }
 
 export interface OnsenLogCreateRequest {
@@ -74,7 +73,7 @@ export interface OnsenLogResponse {
     comment: string;
     created_at: string;
     updated_at: string;
-    images: any[];
+    images: OnsenImage[];
   };
   message: string;
 }
@@ -127,9 +126,18 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+// エラーレスポンスの型
 export interface ApiError {
   error: {
     code: string;
     message: string;
+    details?: unknown;
   };
+}
+
+// サーバーエラーの型
+export interface ServerError {
+  status: number;
+  message: string;
+  isServerError: true;
 } 

@@ -52,9 +52,24 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		// トークンを検証
 		userID, err := m.authService.VerifyToken(ctx.Request.Context(), token)
 		if err != nil {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			var errorCode string
+			var statusCode int
+
+			// エラーに応じたレスポンスを返す
+			if strings.Contains(err.Error(), "有効期限が切れ") {
+				errorCode = "TOKEN_EXPIRED"
+				statusCode = http.StatusUnauthorized
+			} else if strings.Contains(err.Error(), "無効なトークン") {
+				errorCode = "INVALID_TOKEN"
+				statusCode = http.StatusUnauthorized
+			} else {
+				errorCode = "AUTHENTICATION_FAILED"
+				statusCode = http.StatusUnauthorized
+			}
+
+			ctx.AbortWithStatusJSON(statusCode, gin.H{
 				"error": gin.H{
-					"code":    "INVALID_TOKEN",
+					"code":    errorCode,
 					"message": err.Error(),
 				},
 			})
