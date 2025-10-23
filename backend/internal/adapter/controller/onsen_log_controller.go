@@ -26,14 +26,8 @@ func NewOnsenLogController(onsenLogUseCase port.OnsenLogInputPort) *OnsenLogCont
 // CreateOnsenLog は新しい温泉メモを作成します
 func (c *OnsenLogController) CreateOnsenLog(ctx *gin.Context) {
 	// ユーザーIDを取得
-	userID, exists := ctx.Get("userID")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": gin.H{
-				"code":    "UNAUTHORIZED",
-				"message": "認証が必要です",
-			},
-		})
+	userID, ok := GetUserID(ctx)
+	if !ok {
 		return
 	}
 
@@ -48,31 +42,20 @@ func (c *OnsenLogController) CreateOnsenLog(ctx *gin.Context) {
 		Comment    string            `json:"comment"`
 	}
 
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_INPUT",
-				"message": err.Error(),
-			},
-		})
+	if !ValidateBindJSON(ctx, &input) {
 		return
 	}
 
 	// 日付をパース
 	visitDate, err := time.Parse("2006-01-02", input.VisitDate)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_DATE",
-				"message": "日付の形式が無効です（YYYY-MM-DD）",
-			},
-		})
+		RespondWithError(ctx, http.StatusBadRequest, "INVALID_DATE", "日付の形式が無効です（YYYY-MM-DD）")
 		return
 	}
 
 	// 入力データを作成
 	createInput := port.CreateOnsenLogInput{
-		UserID:     userID.(string),
+		UserID:     userID,
 		Name:       input.Name,
 		Location:   input.Location,
 		SpringType: input.SpringType,
@@ -89,57 +72,37 @@ func (c *OnsenLogController) CreateOnsenLog(ctx *gin.Context) {
 	)
 
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{
-				"code":    "CREATE_FAILED",
-				"message": err.Error(),
-			},
-		})
+		RespondWithAppError(ctx, err)
 		return
 	}
 
 	// レスポンスを返す
-	ctx.JSON(http.StatusCreated, gin.H{
-		"data": gin.H{
-			"id":          onsenLog.ID,
-			"name":        onsenLog.Name,
-			"location":    onsenLog.Location,
-			"spring_type": onsenLog.SpringType,
-			"features":    onsenLog.Features,
-			"visit_date":  onsenLog.VisitDate.Format("2006-01-02"),
-			"rating":      onsenLog.Rating,
-			"comment":     onsenLog.Comment,
-			"created_at":  onsenLog.CreatedAt,
-			"updated_at":  onsenLog.UpdatedAt,
-			"images":      onsenLog.Images,
-		},
-		"message": "温泉メモを作成しました",
-	})
+	RespondWithSuccess(ctx, http.StatusCreated, gin.H{
+		"id":          onsenLog.ID,
+		"name":        onsenLog.Name,
+		"location":    onsenLog.Location,
+		"spring_type": onsenLog.SpringType,
+		"features":    onsenLog.Features,
+		"visit_date":  onsenLog.VisitDate.Format("2006-01-02"),
+		"rating":      onsenLog.Rating,
+		"comment":     onsenLog.Comment,
+		"created_at":  onsenLog.CreatedAt,
+		"updated_at":  onsenLog.UpdatedAt,
+		"images":      onsenLog.Images,
+	}, "温泉メモを作成しました")
 }
 
 // GetOnsenLog は特定の温泉メモを取得します
 func (c *OnsenLogController) GetOnsenLog(ctx *gin.Context) {
 	// ユーザーIDを取得
-	userID, exists := ctx.Get("userID")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": gin.H{
-				"code":    "UNAUTHORIZED",
-				"message": "認証が必要です",
-			},
-		})
+	userID, ok := GetUserID(ctx)
+	if !ok {
 		return
 	}
 
 	// パスパラメータからIDを取得
-	id := ctx.Param("id")
-	if id == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_ID",
-				"message": "温泉メモIDが必要です",
-			},
-		})
+	id, ok := ValidatePathParam(ctx, "id", "温泉メモIDが必要です")
+	if !ok {
 		return
 	}
 
@@ -147,49 +110,35 @@ func (c *OnsenLogController) GetOnsenLog(ctx *gin.Context) {
 	onsenLog, err := c.onsenLogUseCase.GetOnsenLog(
 		ctx.Request.Context(),
 		id,
-		userID.(string),
+		userID,
 	)
 
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{
-				"code":    "FETCH_FAILED",
-				"message": err.Error(),
-			},
-		})
+		RespondWithAppError(ctx, err)
 		return
 	}
 
 	// レスポンスを返す
-	ctx.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"id":          onsenLog.ID,
-			"name":        onsenLog.Name,
-			"location":    onsenLog.Location,
-			"spring_type": onsenLog.SpringType,
-			"features":    onsenLog.Features,
-			"visit_date":  onsenLog.VisitDate.Format("2006-01-02"),
-			"rating":      onsenLog.Rating,
-			"comment":     onsenLog.Comment,
-			"created_at":  onsenLog.CreatedAt,
-			"updated_at":  onsenLog.UpdatedAt,
-			"images":      onsenLog.Images,
-		},
-		"message": "温泉メモを取得しました",
-	})
+	RespondWithSuccess(ctx, http.StatusOK, gin.H{
+		"id":          onsenLog.ID,
+		"name":        onsenLog.Name,
+		"location":    onsenLog.Location,
+		"spring_type": onsenLog.SpringType,
+		"features":    onsenLog.Features,
+		"visit_date":  onsenLog.VisitDate.Format("2006-01-02"),
+		"rating":      onsenLog.Rating,
+		"comment":     onsenLog.Comment,
+		"created_at":  onsenLog.CreatedAt,
+		"updated_at":  onsenLog.UpdatedAt,
+		"images":      onsenLog.Images,
+	}, "温泉メモを取得しました")
 }
 
 // GetOnsenLogs はユーザーの温泉メモリストを取得します
 func (c *OnsenLogController) GetOnsenLogs(ctx *gin.Context) {
 	// ユーザーIDを取得
-	userID, exists := ctx.Get("userID")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": gin.H{
-				"code":    "UNAUTHORIZED",
-				"message": "認証が必要です",
-			},
-		})
+	userID, ok := GetUserID(ctx)
+	if !ok {
 		return
 	}
 
@@ -211,44 +160,30 @@ func (c *OnsenLogController) GetOnsenLogs(ctx *gin.Context) {
 	// ユースケースを呼び出し
 	result, err := c.onsenLogUseCase.GetOnsenLogs(
 		ctx.Request.Context(),
-		userID.(string),
+		userID,
 		page,
 		limit,
 	)
 
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{
-				"code":    "FETCH_FAILED",
-				"message": err.Error(),
-			},
-		})
+		RespondWithAppError(ctx, err)
 		return
 	}
 
 	// レスポンスを返す
-	ctx.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"onsen_logs":  result.OnsenLogs,
-			"total_count": result.TotalCount,
-			"page":        result.Page,
-			"limit":       result.Limit,
-		},
-		"message": "温泉メモリストを取得しました",
-	})
+	RespondWithSuccess(ctx, http.StatusOK, gin.H{
+		"onsen_logs":  result.OnsenLogs,
+		"total_count": result.TotalCount,
+		"page":        result.Page,
+		"limit":       result.Limit,
+	}, "温泉メモリストを取得しました")
 }
 
 // GetFilteredOnsenLogs はフィルタリングされた温泉メモリストを取得します
 func (c *OnsenLogController) GetFilteredOnsenLogs(ctx *gin.Context) {
 	// ユーザーIDを取得
-	userID, exists := ctx.Get("userID")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": gin.H{
-				"code":    "UNAUTHORIZED",
-				"message": "認証が必要です",
-			},
-		})
+	userID, ok := GetUserID(ctx)
+	if !ok {
 		return
 	}
 
@@ -301,7 +236,7 @@ func (c *OnsenLogController) GetFilteredOnsenLogs(ctx *gin.Context) {
 
 	// 入力データを作成
 	filterInput := port.FilterOnsenLogsInput{
-		UserID:     userID.(string),
+		UserID:     userID,
 		SpringType: springType,
 		Location:   location,
 		MinRating:  minRating,
@@ -318,50 +253,30 @@ func (c *OnsenLogController) GetFilteredOnsenLogs(ctx *gin.Context) {
 	)
 
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{
-				"code":    "FETCH_FAILED",
-				"message": err.Error(),
-			},
-		})
+		RespondWithAppError(ctx, err)
 		return
 	}
 
 	// レスポンスを返す
-	ctx.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"onsen_logs":  result.OnsenLogs,
-			"total_count": result.TotalCount,
-			"page":        result.Page,
-			"limit":       result.Limit,
-		},
-		"message": "フィルタリングされた温泉メモリストを取得しました",
-	})
+	RespondWithSuccess(ctx, http.StatusOK, gin.H{
+		"onsen_logs":  result.OnsenLogs,
+		"total_count": result.TotalCount,
+		"page":        result.Page,
+		"limit":       result.Limit,
+	}, "フィルタリングされた温泉メモリストを取得しました")
 }
 
 // UpdateOnsenLog は温泉メモを更新します
 func (c *OnsenLogController) UpdateOnsenLog(ctx *gin.Context) {
 	// ユーザーIDを取得
-	userID, exists := ctx.Get("userID")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": gin.H{
-				"code":    "UNAUTHORIZED",
-				"message": "認証が必要です",
-			},
-		})
+	userID, ok := GetUserID(ctx)
+	if !ok {
 		return
 	}
 
 	// パスパラメータからIDを取得
-	id := ctx.Param("id")
-	if id == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_ID",
-				"message": "温泉メモIDが必要です",
-			},
-		})
+	id, ok := ValidatePathParam(ctx, "id", "温泉メモIDが必要です")
+	if !ok {
 		return
 	}
 
@@ -376,32 +291,21 @@ func (c *OnsenLogController) UpdateOnsenLog(ctx *gin.Context) {
 		Comment    string            `json:"comment"`
 	}
 
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_INPUT",
-				"message": err.Error(),
-			},
-		})
+	if !ValidateBindJSON(ctx, &input) {
 		return
 	}
 
 	// 日付をパース
 	visitDate, err := time.Parse("2006-01-02", input.VisitDate)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_DATE",
-				"message": "日付の形式が無効です（YYYY-MM-DD）",
-			},
-		})
+		RespondWithError(ctx, http.StatusBadRequest, "INVALID_DATE", "日付の形式が無効です（YYYY-MM-DD）")
 		return
 	}
 
 	// 入力データを作成
 	updateInput := port.UpdateOnsenLogInput{
 		ID:         id,
-		UserID:     userID.(string),
+		UserID:     userID,
 		Name:       input.Name,
 		Location:   input.Location,
 		SpringType: input.SpringType,
@@ -418,117 +322,74 @@ func (c *OnsenLogController) UpdateOnsenLog(ctx *gin.Context) {
 	)
 
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{
-				"code":    "UPDATE_FAILED",
-				"message": err.Error(),
-			},
-		})
+		RespondWithAppError(ctx, err)
 		return
 	}
 
 	// レスポンスを返す
-	ctx.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"id":          onsenLog.ID,
-			"name":        onsenLog.Name,
-			"location":    onsenLog.Location,
-			"spring_type": onsenLog.SpringType,
-			"features":    onsenLog.Features,
-			"visit_date":  onsenLog.VisitDate.Format("2006-01-02"),
-			"rating":      onsenLog.Rating,
-			"comment":     onsenLog.Comment,
-			"created_at":  onsenLog.CreatedAt,
-			"updated_at":  onsenLog.UpdatedAt,
-			"images":      onsenLog.Images,
-		},
-		"message": "温泉メモを更新しました",
-	})
+	RespondWithSuccess(ctx, http.StatusOK, gin.H{
+		"id":          onsenLog.ID,
+		"name":        onsenLog.Name,
+		"location":    onsenLog.Location,
+		"spring_type": onsenLog.SpringType,
+		"features":    onsenLog.Features,
+		"visit_date":  onsenLog.VisitDate.Format("2006-01-02"),
+		"rating":      onsenLog.Rating,
+		"comment":     onsenLog.Comment,
+		"created_at":  onsenLog.CreatedAt,
+		"updated_at":  onsenLog.UpdatedAt,
+		"images":      onsenLog.Images,
+	}, "温泉メモを更新しました")
 }
 
 // DeleteOnsenLog は温泉メモを削除します
 func (c *OnsenLogController) DeleteOnsenLog(ctx *gin.Context) {
 	// コンテキストからユーザーIDを取得
-	userID, exists := ctx.Get("userID")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": gin.H{
-				"code":    "UNAUTHORIZED",
-				"message": "認証されていません",
-			},
-		})
+	userID, ok := GetUserID(ctx)
+	if !ok {
 		return
 	}
 
 	// パスパラメータからIDを取得
-	id := ctx.Param("id")
-	if id == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "MISSING_ID",
-				"message": "温泉メモIDが指定されていません",
-			},
-		})
+	id, ok := ValidatePathParam(ctx, "id", "温泉メモIDが指定されていません")
+	if !ok {
 		return
 	}
 
 	// ユースケースを呼び出し
-	err := c.onsenLogUseCase.DeleteOnsenLog(ctx.Request.Context(), id, userID.(string))
+	err := c.onsenLogUseCase.DeleteOnsenLog(ctx.Request.Context(), id, userID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{
-				"code":    "DELETE_FAILED",
-				"message": err.Error(),
-			},
-		})
+		RespondWithAppError(ctx, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "温泉メモの削除に成功しました",
-	})
+	RespondWithSuccess(ctx, http.StatusOK, nil, "温泉メモの削除に成功しました")
 }
 
 // ExportOnsenLogs は温泉メモをエクスポートします
 func (c *OnsenLogController) ExportOnsenLogs(ctx *gin.Context) {
 	// ユーザーIDを取得
-	userID, exists := ctx.Get("userID")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": gin.H{
-				"code":    "UNAUTHORIZED",
-				"message": "認証が必要です",
-			},
-		})
+	userID, ok := GetUserID(ctx)
+	if !ok {
 		return
 	}
 
 	// クエリパラメータからフォーマットを取得
 	format := ctx.DefaultQuery("format", "json")
 	if format != "json" && format != "csv" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_FORMAT",
-				"message": "サポートされているフォーマットは json または csv です",
-			},
-		})
+		RespondWithError(ctx, http.StatusBadRequest, "INVALID_FORMAT", "サポートされているフォーマットは json または csv です")
 		return
 	}
 
 	// ユースケースを呼び出し
 	data, err := c.onsenLogUseCase.ExportOnsenLogs(
 		ctx.Request.Context(),
-		userID.(string),
+		userID,
 		format,
 	)
 
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{
-				"code":    "EXPORT_FAILED",
-				"message": err.Error(),
-			},
-		})
+		RespondWithAppError(ctx, err)
 		return
 	}
 
