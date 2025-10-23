@@ -74,24 +74,6 @@ func (r *Router) SetupRoutes() {
 		}
 	}
 
-	// ルートレベルでも同じ認証エンドポイントを提供 (/auth/...)
-	rootAuth := r.engine.Group("/auth")
-	{
-		rootAuth.POST("/register", r.authController.Register)
-		rootAuth.POST("/login", r.authController.Login)
-		rootAuth.POST("/refresh", r.authController.RefreshToken)
-		rootAuth.POST("/logout", r.authMiddleware.RequireAuth(), r.authController.Logout)
-
-		// ユーザープロフィール関連
-		rootProfile := rootAuth.Group("/profile", r.authMiddleware.RequireAuth())
-		{
-			rootProfile.GET("", r.authController.GetCurrentUser)
-			rootProfile.PUT("", r.authController.UpdateProfile)
-			rootProfile.PUT("/password", r.authController.ChangePassword)
-			rootProfile.DELETE("", r.authController.DeleteAccount)
-		}
-	}
-
 	// 温泉メモ関連のルート
 	onsenLogs := api.Group("/onsen_logs", r.authMiddleware.RequireAuth())
 	{
@@ -104,32 +86,12 @@ func (r *Router) SetupRoutes() {
 		onsenLogs.DELETE("/:id", r.onsenLogController.DeleteOnsenLog)
 	}
 
-	// ハイフン形式のURLも同じエンドポイントにマッピング（代替URLとして）
-	onsenLogsAlt := api.Group("/onsen-logs", r.authMiddleware.RequireAuth())
-	{
-		onsenLogsAlt.POST("", r.onsenLogController.CreateOnsenLog)
-		onsenLogsAlt.GET("", r.onsenLogController.GetOnsenLogs)
-		onsenLogsAlt.GET("/filter", r.onsenLogController.GetFilteredOnsenLogs)
-		onsenLogsAlt.GET("/export", r.onsenLogController.ExportOnsenLogs)
-		onsenLogsAlt.GET("/:id", r.onsenLogController.GetOnsenLog)
-		onsenLogsAlt.PUT("/:id", r.onsenLogController.UpdateOnsenLog)
-		onsenLogsAlt.DELETE("/:id", r.onsenLogController.DeleteOnsenLog)
-	}
-
-	// 温泉画像関連のルート - 認証ミドルウェアを追加
+	// 温泉画像関連のルート
 	onsenImages := api.Group("/onsen_images", r.authMiddleware.RequireAuth())
 	{
 		onsenImages.POST("/:onsen_id", r.onsenImageController.UploadImage)
 		onsenImages.GET("/:onsen_id", r.onsenImageController.GetImagesByOnsenID)
 		onsenImages.DELETE("/:image_id", r.onsenImageController.DeleteImage)
-	}
-
-	// ハイフン形式の温泉画像URLも追加
-	onsenImagesAlt := api.Group("/onsen-images", r.authMiddleware.RequireAuth())
-	{
-		onsenImagesAlt.POST("/:onsen_id", r.onsenImageController.UploadImage)
-		onsenImagesAlt.GET("/:onsen_id", r.onsenImageController.GetImagesByOnsenID)
-		onsenImagesAlt.DELETE("/:image_id", r.onsenImageController.DeleteImage)
 	}
 
 	// ヘルスチェック
